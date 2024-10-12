@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -106,6 +107,8 @@ var PrecompiledContractsCancun = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{8}):    &bn256PairingIstanbul{},
 	common.BytesToAddress([]byte{9}):    &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
+	//add new precompile for timestamphd
+	common.BytesToAddress([]byte{0x0b}): &timestampHD{},
 }
 
 // PrecompiledContractsP256Verify contains the precompiled Ethereum
@@ -1196,4 +1199,21 @@ func (c *p256Verify) Run(input []byte) ([]byte, error) {
 	}
 	// Signature is invalid.
 	return nil, nil
+}
+
+// timestampHD is the precompiled contract that returns the high-precision block timestamp.
+type timestampHD struct{}
+
+// RequiredGas returns the gas required to execute the precompiled contract.
+func (c *timestampHD) RequiredGas(input []byte) uint64 {
+	return params.IdentityPerWordGas
+}
+
+// running logic for timestampHD
+func (c *timestampHD) Run(input []byte) ([]byte, error) {
+	// get nano，convert to milisecond
+	now := time.Now().UnixNano() / 1e6
+	result := make([]byte, 8)
+	binary.BigEndian.PutUint64(result, uint64(now))
+	return result, nil
 }
