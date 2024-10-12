@@ -28,7 +28,6 @@
         "fmt:sol": "prettier 'contracts/**/*.sol' -w",
         "fmt:ts": "prettier 'src/**/*.ts' 'test/**/*.ts' -w",
         "prepack": "yarn build",
-        "prepare": "husky install",
         "prepublish": "yarn rimraf build && yarn build && yarn build:ts"
     },
     "repository": {
