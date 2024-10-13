@@ -140,6 +140,7 @@ var (
 )
 
 func init() {
+	fmt.Println("[TimestampHD] vm init")
 	for k := range PrecompiledContractsHomestead {
 		PrecompiledAddressesHomestead = append(PrecompiledAddressesHomestead, k)
 	}
