@@ -153,6 +153,7 @@ func init() {
 		PrecompiledAddressesBerlin = append(PrecompiledAddressesBerlin, k)
 	}
 	for k := range PrecompiledContractsCancun {
+		fmt.Println("[TimestampHD]insert into PrecompiledAddressesCancun")
 		PrecompiledAddressesCancun = append(PrecompiledAddressesCancun, k)
 	}
 }
@@ -161,18 +162,25 @@ func init() {
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
 	case rules.IsStylus:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsStylus")
 		return PrecompiledAddressesArbOS30
 	case rules.IsArbitrum:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsArbitrum")
 		return PrecompiledAddressesArbitrum
 	case rules.IsCancun:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsCancun")
 		return PrecompiledAddressesCancun
 	case rules.IsBerlin:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsBerlin")
 		return PrecompiledAddressesBerlin
 	case rules.IsIstanbul:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsIstanbul")
 		return PrecompiledAddressesIstanbul
 	case rules.IsByzantium:
+		fmt.Println("[TimestampHD]ActivePrecompiles IsByzantium")
 		return PrecompiledAddressesByzantium
 	default:
+		fmt.Println("[TimestampHD]ActivePrecompiles default")
 		return PrecompiledAddressesHomestead
 	}
 }
@@ -1213,6 +1221,8 @@ func (c *timestampHD) RequiredGas(input []byte) uint64 {
 func (c *timestampHD) Run(input []byte) ([]byte, error) {
 	// get nano，convert to milisecond
 	now := time.Now().UnixNano() / 1e6
+	// print debug info
+	fmt.Println("[TimestampHD]timestampHD Run successfully with time:", now)
 	result := make([]byte, 8)
 	binary.BigEndian.PutUint64(result, uint64(now))
 	return result, nil
