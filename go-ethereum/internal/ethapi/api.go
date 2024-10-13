@@ -178,7 +178,8 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 				Data:     data,
 			}
 			tx := types.NewTx(txdata)
-			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+			log.Info("chid: ", s.b.ChainConfig().ChainID)
+			signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(s.b.ChainConfig().ChainID), key)
 			if err != nil {
 				log.Error("Failed to sign transaction: %v", err)
 				return
