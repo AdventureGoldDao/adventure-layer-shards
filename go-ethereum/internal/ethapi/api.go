@@ -21,8 +21,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -94,6 +96,101 @@ func (s *EthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, e
 		return nil, err
 	}
 	return (*hexutil.Big)(tipcap), err
+}
+
+var contractMap sync.Map
+
+type ContractTask struct {
+	CancelFunc context.CancelFunc
+	Interval   time.Duration
+	PrivateKey string
+	Address    common.Address
+}
+
+func (s *EthereumAPI) ManageContractTask(address, privateKey string, interval int, start bool) string {
+	if address == "" || privateKey == "" || interval <= 0 {
+		return fmt.Sprintf("params err!")
+	}
+	addr := common.HexToAddress(address)
+	if start {
+		if _, exists := contractMap.Load(addr); exists {
+			return fmt.Sprintf("Polling task for contract %s is already running.", addr.Hex())
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		task := ContractTask{
+			CancelFunc: cancel,
+			Interval:   time.Duration(interval) * time.Millisecond,
+			PrivateKey: privateKey,
+			Address:    addr,
+		}
+
+		contractMap.Store(addr, task)
+
+		go s.startPolling(ctx, task)
+		return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
+	} else {
+		if taskInterface, exists := contractMap.Load(addr); exists {
+			task := taskInterface.(ContractTask)
+			task.CancelFunc()
+			contractMap.Delete(addr)
+			return fmt.Sprintf("Stopped polling for contract: %s", addr.Hex())
+		} else {
+			return fmt.Sprintf("No polling task found for contract: %s", addr.Hex())
+		}
+	}
+}
+
+func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
+	key, err := crypto.HexToECDSA(task.PrivateKey)
+	if err != nil {
+		log.Error("Failed to parse private key: %v", err)
+		return
+	}
+
+	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
+
+	nonce, _ := s.b.GetPoolNonce(ctx, fromAddr)
+
+	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"myFunction","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
+	if err != nil {
+		log.Error("Failed to parse contract ABI: %v", err)
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("Polling stopped for contract: %s", task.Address.Hex())
+			return
+		default:
+			data, _ := contractABI.Pack("myFunction")
+			txdata := &types.LegacyTx{
+				Nonce:    nonce,
+				To:       &task.Address,
+				Value:    big.NewInt(0),
+				Gas:      21000,
+				GasPrice: big.NewInt(1000000000),
+				Data:     data,
+			}
+			tx := types.NewTx(txdata)
+			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+			if err != nil {
+				log.Error("Failed to sign transaction: %v", err)
+				return
+			}
+			err = s.b.SendTx(ctx, signedTx)
+			if err != nil {
+				log.Error("Failed to send transaction: %v", err)
+				return
+			} else {
+				log.Info("Transaction sent: %s", signedTx.Hash().Hex())
+				nonce++
+			}
+
+			time.Sleep(task.Interval)
+		}
+	}
 }
 
 type feeHistoryResult struct {
