@@ -1206,7 +1206,7 @@ type timestampHD struct{}
 
 // RequiredGas returns the gas required to execute the precompiled contract.
 func (c *timestampHD) RequiredGas(input []byte) uint64 {
-	return params.IdentityPerWordGas
+	return 21000
 }
 
 // running logic for timestampHD
