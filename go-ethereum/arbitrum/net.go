@@ -74,7 +74,7 @@ func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, in
 }
 
 func startPolling(ctx context.Context, task ContractTask) {
-	client, err := ethclient.Dial("http://localhost:8587") // 使用 Nitro 节点的 RPC 地址
+	client, err := ethclient.Dial(task.RpcUrl)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
