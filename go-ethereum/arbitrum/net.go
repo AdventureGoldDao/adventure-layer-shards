@@ -40,12 +40,15 @@ type ContractTask struct {
 	Address    common.Address
 }
 
-func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, interval int, start bool) {
+func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, interval int, start bool) string {
+	if address == "" || privateKey == "" || rpcUrl == "" || interval <= 0 {
+		return fmt.Sprintf("params err!")
+	}
 	addr := common.HexToAddress(address)
 	if start {
 		if _, exists := contractMap.Load(addr); exists {
 			log.Printf("Polling task for contract %s is already running.", addr.Hex())
-			return
+			return fmt.Sprintf("Polling task for contract %s is already running.", addr.Hex())
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -61,14 +64,17 @@ func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, in
 
 		go startPolling(ctx, task)
 		log.Printf("Started polling for contract: %s", addr.Hex())
+		return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
 	} else {
 		if taskInterface, exists := contractMap.Load(addr); exists {
 			task := taskInterface.(ContractTask)
 			task.CancelFunc()
 			contractMap.Delete(addr)
 			log.Printf("Stopped polling for contract: %s", addr.Hex())
+			return fmt.Sprintf("Stopped polling for contract: %s", addr.Hex())
 		} else {
 			log.Printf("No polling task found for contract: %s", addr.Hex())
+			return fmt.Sprintf("No polling task found for contract: %s", addr.Hex())
 		}
 	}
 }
