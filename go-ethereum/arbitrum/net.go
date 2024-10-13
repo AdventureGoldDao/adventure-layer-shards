@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"log"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"strings"
 	"sync"
@@ -47,7 +47,6 @@ func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, in
 	addr := common.HexToAddress(address)
 	if start {
 		if _, exists := contractMap.Load(addr); exists {
-			log.Printf("Polling task for contract %s is already running.", addr.Hex())
 			return fmt.Sprintf("Polling task for contract %s is already running.", addr.Hex())
 		}
 
@@ -63,17 +62,14 @@ func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, in
 		contractMap.Store(addr, task)
 
 		go startPolling(ctx, task)
-		log.Printf("Started polling for contract: %s", addr.Hex())
 		return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
 	} else {
 		if taskInterface, exists := contractMap.Load(addr); exists {
 			task := taskInterface.(ContractTask)
 			task.CancelFunc()
 			contractMap.Delete(addr)
-			log.Printf("Stopped polling for contract: %s", addr.Hex())
 			return fmt.Sprintf("Stopped polling for contract: %s", addr.Hex())
 		} else {
-			log.Printf("No polling task found for contract: %s", addr.Hex())
 			return fmt.Sprintf("No polling task found for contract: %s", addr.Hex())
 		}
 	}
@@ -82,13 +78,15 @@ func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, in
 func startPolling(ctx context.Context, task ContractTask) {
 	client, err := ethclient.Dial(task.RpcUrl)
 	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+		log.Error("Failed to connect to the Ethereum client: %v", err)
+		return
 	}
 	defer client.Close()
 
 	key, err := crypto.HexToECDSA(task.PrivateKey)
 	if err != nil {
-		log.Fatalf("Failed to parse private key: %v", err)
+		log.Error("Failed to parse private key: %v", err)
+		return
 	}
 
 	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
@@ -99,13 +97,14 @@ func startPolling(ctx context.Context, task ContractTask) {
 
 	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"myFunction","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
 	if err != nil {
-		log.Fatalf("Failed to parse contract ABI: %v", err)
+		log.Error("Failed to parse contract ABI: %v", err)
+		return
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("Polling stopped for contract: %s", task.Address.Hex())
+			log.Info("Polling stopped for contract: %s", task.Address.Hex())
 			return
 		default:
 			data, _ := contractABI.Pack("myFunction")
@@ -120,15 +119,16 @@ func startPolling(ctx context.Context, task ContractTask) {
 			tx := types.NewTx(txdata)
 			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
 			if err != nil {
-				log.Printf("Failed to sign transaction: %v", err)
-				continue
+				log.Error("Failed to sign transaction: %v", err)
+				return
 			}
 
 			err = client.SendTransaction(ctx, signedTx)
 			if err != nil {
-				log.Printf("Failed to send transaction: %v", err)
+				log.Error("Failed to send transaction: %v", err)
+				return
 			} else {
-				log.Printf("Transaction sent: %s", signedTx.Hash().Hex())
+				log.Info("Transaction sent: %s", signedTx.Hash().Hex())
 				nonce++
 			}
 
