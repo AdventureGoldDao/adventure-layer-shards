@@ -458,13 +458,12 @@ type ContractTask struct {
 	CancelFunc context.CancelFunc
 	Interval   time.Duration
 	PrivateKey string
-	RpcUrl     string
 	Address    common.Address
 	txPool     *txpool.TxPool
 }
 
-func (b *EthAPIBackend) ManageContractTask(address, privateKey, rpcUrl string, interval int, start bool) string {
-	if address == "" || privateKey == "" || rpcUrl == "" || interval <= 0 {
+func (b *EthAPIBackend) ManageContractTask(address, privateKey string, interval int, start bool) string {
+	if address == "" || privateKey == "" || interval <= 0 {
 		return fmt.Sprintf("params err!")
 	}
 	addr := common.HexToAddress(address)
@@ -479,7 +478,6 @@ func (b *EthAPIBackend) ManageContractTask(address, privateKey, rpcUrl string, i
 			CancelFunc: cancel,
 			Interval:   time.Duration(interval) * time.Millisecond,
 			PrivateKey: privateKey,
-			RpcUrl:     rpcUrl,
 			Address:    addr,
 			txPool:     b.eth.txPool,
 		}
