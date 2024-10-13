@@ -165,11 +165,15 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 			return
 		default:
 			data, _ := contractABI.Pack("myFunction")
+			price, err := s.GasPrice(ctx)
+			if err != nil {
+				return
+			}
 			txdata := &types.LegacyTx{
 				Nonce:    nonce,
 				To:       &task.Address,
 				Value:    big.NewInt(0),
-				Gas:      21000,
+				Gas:      price.ToInt().Uint64(),
 				GasPrice: big.NewInt(1000000000),
 				Data:     data,
 			}
