@@ -92,6 +92,11 @@ func createNewHeader(prevHeader *types.Header, l1info *L1Info, state *arbosState
 		copy(extra, prevHeader.Extra)
 		mixDigest = prevHeader.MixDigest
 	}
+	//added by lm
+	timestampHD := time.Now().UnixMilli()
+	extraData := make([]byte, 8)
+	binary.BigEndian.PutUint64(extraData, uint64(timestampHD))
+
 	header := &types.Header{
 		ParentHash:  lastBlockHash,
 		UncleHash:   types.EmptyUncleHash, // Post-merge Ethereum will require this to be types.EmptyUncleHash
@@ -105,8 +110,7 @@ func createNewHeader(prevHeader *types.Header, l1info *L1Info, state *arbosState
 		GasLimit:    l2pricing.GethBlockGasLimit,
 		GasUsed:     0,
 		Time:        timestamp,
-		TimeHD:      uint64(time.Now().UnixMilli()),
-		Extra:       extra,     // used by NewEVMBlockContext
+		Extra:       extraData, // used by NewEVMBlockContext
 		MixDigest:   mixDigest, // used by NewEVMBlockContext
 		Nonce:       [8]byte{}, // Filled in later; post-merge Ethereum will require this to be zero
 		BaseFee:     baseFee,

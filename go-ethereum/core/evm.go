@@ -17,6 +17,8 @@
 package core
 
 import (
+	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -66,6 +68,14 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		difficultyHash := common.BigToHash(header.Difficulty)
 		random = &difficultyHash
 	}
+	// 从 Extra 字段解码出 TimestampHD
+	extraData := header.Extra
+	timestampHD := uint64(0)
+	if len(extraData) >= 8 {
+		timestampHD = binary.BigEndian.Uint64(extraData[:8]) // 提取前8个字节
+		fmt.Println("NewEVMBlockContext TimestampHD:", timestampHD)
+	}
+
 	return vm.BlockContext{
 		CanTransfer:  CanTransfer,
 		Transfer:     Transfer,
@@ -73,7 +83,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		Coinbase:     beneficiary,
 		BlockNumber:  new(big.Int).Set(header.Number),
 		Time:         header.Time,
-		TimeHD:       header.TimeHD,
+		TimeHD:       timestampHD,
 		Difficulty:   new(big.Int).Set(header.Difficulty),
 		BaseFee:      baseFee,
 		BlobBaseFee:  blobBaseFee,
