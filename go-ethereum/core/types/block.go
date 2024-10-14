@@ -75,6 +75,7 @@ type Header struct {
 	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
 	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
 	Time        uint64         `json:"timestamp"        gencodec:"required"`
+	TimeHD      uint64         `json:"timestampHD"      gencodec:"required"`
 	Extra       []byte         `json:"extraData"        gencodec:"required"`
 	MixDigest   common.Hash    `json:"mixHash"`
 	Nonce       BlockNonce     `json:"nonce"`
@@ -102,6 +103,7 @@ type headerMarshaling struct {
 	GasLimit      hexutil.Uint64
 	GasUsed       hexutil.Uint64
 	Time          hexutil.Uint64
+	TimeHD        hexutil.Uint64
 	Extra         hexutil.Bytes
 	BaseFee       *hexutil.Big
 	Hash          common.Hash `json:"hash"` // adds call to Hash() in MarshalJSON
@@ -363,6 +365,7 @@ func (b *Block) GasLimit() uint64     { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64      { return b.header.GasUsed }
 func (b *Block) Difficulty() *big.Int { return new(big.Int).Set(b.header.Difficulty) }
 func (b *Block) Time() uint64         { return b.header.Time }
+func (b *Block) TimeHD() uint64       { return b.header.TimeHD }
 
 func (b *Block) NumberU64() uint64        { return b.header.Number.Uint64() }
 func (b *Block) MixDigest() common.Hash   { return b.header.MixDigest }

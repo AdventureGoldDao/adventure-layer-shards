@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/offchainlabs/nitro/arbos/arbosState"
 	"github.com/offchainlabs/nitro/arbos/arbostypes"
@@ -104,6 +105,7 @@ func createNewHeader(prevHeader *types.Header, l1info *L1Info, state *arbosState
 		GasLimit:    l2pricing.GethBlockGasLimit,
 		GasUsed:     0,
 		Time:        timestamp,
+		TimeHD:      uint64(time.Now().UnixMilli()),
 		Extra:       extra,     // used by NewEVMBlockContext
 		MixDigest:   mixDigest, // used by NewEVMBlockContext
 		Nonce:       [8]byte{}, // Filled in later; post-merge Ethereum will require this to be zero

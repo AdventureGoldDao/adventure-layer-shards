@@ -108,7 +108,7 @@ var PrecompiledContractsCancun = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{9}):    &blake2F{},
 	common.BytesToAddress([]byte{0x0a}): &kzgPointEvaluation{},
 	//add new precompile for timestamphd
-	common.BytesToAddress([]byte{0x0b}): &timestampHD{},
+	//common.BytesToAddress([]byte{0x0b}): &timestampHD{},
 }
 
 // PrecompiledContractsP256Verify contains the precompiled Ethereum
@@ -154,7 +154,6 @@ func init() {
 		PrecompiledAddressesBerlin = append(PrecompiledAddressesBerlin, k)
 	}
 	for k := range PrecompiledContractsCancun {
-		fmt.Println("[TimestampHD]insert into PrecompiledAddressesCancun")
 		PrecompiledAddressesCancun = append(PrecompiledAddressesCancun, k)
 	}
 }
@@ -163,25 +162,18 @@ func init() {
 func ActivePrecompiles(rules params.Rules) []common.Address {
 	switch {
 	case rules.IsStylus:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsStylus")
 		return PrecompiledAddressesArbOS30
 	case rules.IsArbitrum:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsArbitrum")
 		return PrecompiledAddressesArbitrum
 	case rules.IsCancun:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsCancun")
 		return PrecompiledAddressesCancun
 	case rules.IsBerlin:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsBerlin")
 		return PrecompiledAddressesBerlin
 	case rules.IsIstanbul:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsIstanbul")
 		return PrecompiledAddressesIstanbul
 	case rules.IsByzantium:
-		fmt.Println("[TimestampHD]ActivePrecompiles IsByzantium")
 		return PrecompiledAddressesByzantium
 	default:
-		fmt.Println("[TimestampHD]ActivePrecompiles default")
 		return PrecompiledAddressesHomestead
 	}
 }

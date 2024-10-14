@@ -475,6 +475,11 @@ func opTimestamp(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 	return nil, nil
 }
 
+func opTimestampHD(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
+	scope.Stack.push(new(uint256.Int).SetUint64(interpreter.evm.Context.TimeHD))
+	return nil, nil
+}
+
 func opNumber(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) ([]byte, error) {
 	bnum, err := interpreter.evm.ProcessingHook.L1BlockNumber(interpreter.evm.Context)
 	if err != nil {

@@ -102,6 +102,8 @@ const (
 	BASEFEE     OpCode = 0x48
 	BLOBHASH    OpCode = 0x49
 	BLOBBASEFEE OpCode = 0x4a
+
+	TIMESTAMPHD OpCode = 0x4b
 )
 
 // 0x50 range - 'storage' and execution.
