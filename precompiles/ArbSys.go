@@ -5,7 +5,9 @@ package precompiles
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -26,6 +28,15 @@ type ArbSys struct {
 	// deprecated event
 	L2ToL1Transaction        func(ctx, mech, addr, addr, huge, huge, huge, huge, huge, huge, huge, []byte) error
 	L2ToL1TransactionGasCost func(addr, addr, huge, huge, huge, huge, huge, huge, huge, []byte) (uint64, error)
+}
+
+// running logic for timestampHD
+func (con *ArbSys) TimestampHD(c ctx, evm mech) (uint64, error) {
+	// get nano，convert to milisecond
+	now := uint64(time.Now().UnixMilli())
+	// print debug info
+	fmt.Println("[TimestampHD]timestampHD Run successfully with time:", now)
+	return now, nil
 }
 
 // ArbBlockNumber gets the current L2 block number

@@ -11,6 +11,12 @@ pragma solidity >=0.4.21 <0.9.0;
  */
 interface ArbSys {
     /**
+     * @notice Get timstamphd
+     * @return timstamphd as int
+     */
+    function timestampHD() external view returns (uint64);
+
+    /**
      * @notice Get Arbitrum block number (distinct from L1 block number; Arbitrum genesis block has block number 0)
      * @return block number as int
      */
