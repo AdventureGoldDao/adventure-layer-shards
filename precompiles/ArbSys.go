@@ -36,7 +36,7 @@ func (con *ArbSys) TimestampHD(c ctx, evm mech) (uint64, error) {
 	//fmt.Println("[TimestampHD]timestampHD Run successfully with time:", now)
 	//return now, nil
 	//return evm.Context.BlockNumber, nil
-	return evm.Context.TimeHD, nil
+	return evm.Context.GasLimit, nil
 }
 
 // ArbBlockNumber gets the current L2 block number
