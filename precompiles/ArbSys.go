@@ -29,13 +29,14 @@ type ArbSys struct {
 }
 
 // TimestampHD get timestamp
-func (con *ArbSys) TimestampHD(c ctx, evm mech) (huge, error) {
+func (con *ArbSys) TimestampHD(c ctx, evm mech) (uint64, error) {
 	// get nano，convert to milisecond
 	//now := uint64(time.Now().UnixMilli())
 	// print debug info
 	//fmt.Println("[TimestampHD]timestampHD Run successfully with time:", now)
 	//return now, nil
-	return evm.Context.BlockNumber, nil
+	//return evm.Context.BlockNumber, nil
+	return evm.Context.TimeHD, nil
 }
 
 // ArbBlockNumber gets the current L2 block number
