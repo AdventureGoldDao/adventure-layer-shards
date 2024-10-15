@@ -14,7 +14,7 @@ interface ArbSys {
      * @notice Get timstamphd
      * @return timstamphd as int
      */
-    function timestampHD() external view returns (uint64);
+    function timestampHD() external view returns (uint256);
 
     /**
      * @notice Get Arbitrum block number (distinct from L1 block number; Arbitrum genesis block has block number 0)
