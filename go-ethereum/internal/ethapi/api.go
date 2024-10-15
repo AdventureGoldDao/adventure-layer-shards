@@ -101,10 +101,11 @@ func (s *EthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, e
 var contractMap sync.Map
 
 type ContractTask struct {
-	CancelFunc context.CancelFunc
-	Interval   time.Duration
-	PrivateKey string
-	Address    common.Address
+	CancelFunc  context.CancelFunc
+	Interval    time.Duration
+	PrivateKey  string
+	Address     common.Address
+	sendTxMutex sync.Mutex
 }
 
 func (s *EthereumAPI) ManageContractTask(address, privateKey string, interval int, start bool) string {
@@ -149,47 +150,47 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 	}
 
 	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
-
 	nonce, _ := s.b.GetPoolNonce(ctx, fromAddr)
 
 	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"myFunction","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
 	if err != nil {
-		log.Error("Failed to parse contract ABI: %v", err)
+		log.Error("Failed to parse contract ABI:", err)
 		return
 	}
-
+	gasLimit := uint64(300000)
+	gasPrice, _ := s.GasPrice(ctx)
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("Polling stopped for contract: %s", task.Address.Hex())
+			log.Info("Polling stopped for contract:", task.Address.Hex())
 			return
 		default:
-			data, _ := contractABI.Pack("myFunction")
-			price, err := s.GasPrice(ctx)
+			data, err := contractABI.Pack("myFunction")
 			if err != nil {
-				return
+				log.Error("contractABI:", err)
 			}
-			txdata := &types.LegacyTx{
+			task.sendTxMutex.Lock()
+			tx := types.NewTx(&types.LegacyTx{
 				Nonce:    nonce,
 				To:       &task.Address,
 				Value:    big.NewInt(0),
-				Gas:      price.ToInt().Uint64(),
-				GasPrice: big.NewInt(1000000000),
+				Gas:      gasLimit,
+				GasPrice: gasPrice.ToInt(),
 				Data:     data,
-			}
-			tx := types.NewTx(txdata)
-			//log.Info("chid: ", s.b.ChainConfig().ChainID)
+			})
 			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
 			if err != nil {
-				log.Error("Failed to sign transaction: %v", err)
+				log.Error("Failed to sign transaction:", err)
 				return
 			}
-			err = s.b.SendTx(ctx, signedTx)
+			transaction, err := SubmitTransaction(ctx, s.b, signedTx)
+			//err = s.b.SendTx(ctx, signedTx)
+			task.sendTxMutex.Unlock()
 			if err != nil {
-				log.Error("Failed to send transaction: %v", err)
+				log.Error("Failed to send transaction:", err)
 				return
 			} else {
-				log.Info("Transaction sent: %s", signedTx.Hash().Hex())
+				log.Info("Transaction sent:", transaction.Hex())
 				nonce++
 			}
 
