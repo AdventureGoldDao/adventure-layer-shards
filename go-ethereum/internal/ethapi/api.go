@@ -152,7 +152,7 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
 	nonce, _ := s.b.GetPoolNonce(ctx, fromAddr)
 
-	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"myFunction","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
+	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"adventureHeatbeat","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
 	if err != nil {
 		log.Error("Failed to parse contract ABI:", err)
 		return
@@ -165,7 +165,7 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 			log.Info("Polling stopped for contract:", task.Address.Hex())
 			return
 		default:
-			data, err := contractABI.Pack("myFunction")
+			data, err := contractABI.Pack("adventureHeatbeat")
 			if err != nil {
 				log.Error("contractABI:", err)
 			}
