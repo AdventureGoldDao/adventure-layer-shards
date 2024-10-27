@@ -150,24 +150,37 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 	}
 
 	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
-	nonce, _ := s.b.GetPoolNonce(ctx, fromAddr)
+	nonce, err := s.b.GetPoolNonce(ctx, fromAddr)
+	if err != nil {
+		log.Error("Failed to get nonce:", err)
+		return
+	}
 
 	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"adventureHeatbeat","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
 	if err != nil {
 		log.Error("Failed to parse contract ABI:", err)
 		return
 	}
-	gasLimit := uint64(300000)
-	gasPrice, _ := s.GasPrice(ctx)
+	data, err := contractABI.Pack("adventureHeatbeat")
+	if err != nil {
+		log.Error("contractABI:", err)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			log.Info("Polling stopped for contract:", task.Address.Hex())
 			return
 		default:
-			data, err := contractABI.Pack("adventureHeatbeat")
+			gasLimit, err := s.estimateGas(ctx, &fromAddr, &task.Address, data)
 			if err != nil {
-				log.Error("contractABI:", err)
+				log.Error("Failed to estimate gas:", err)
+				return
+			}
+			gasPrice, err := s.GasPrice(ctx)
+			if err != nil {
+				log.Error("Failed to get gas price:", err)
+				return
 			}
 			task.sendTxMutex.Lock()
 			tx := types.NewTx(&types.LegacyTx{
@@ -175,7 +188,7 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 				To:       &task.Address,
 				Value:    big.NewInt(0),
 				Gas:      gasLimit,
-				GasPrice: gasPrice.ToInt(),
+				GasPrice: big.NewInt(gasPrice.ToInt().Int64() * 2),
 				Data:     data,
 			})
 			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
@@ -184,7 +197,6 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 				return
 			}
 			transaction, err := SubmitTransaction(ctx, s.b, signedTx)
-			//err = s.b.SendTx(ctx, signedTx)
 			task.sendTxMutex.Unlock()
 			if err != nil {
 				log.Error("Failed to send transaction:", err)
@@ -197,6 +209,21 @@ func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
 			time.Sleep(task.Interval)
 		}
 	}
+}
+
+func (s *EthereumAPI) estimateGas(ctx context.Context, fromAddr *common.Address, to *common.Address, data []byte) (uint64, error) {
+	args := TransactionArgs{
+		From:  fromAddr,
+		To:    to,
+		Data:  (*hexutil.Bytes)(&data),
+		Value: (*hexutil.Big)(big.NewInt(0)),
+	}
+	blockNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
+	res, err := DoEstimateGas(ctx, s.b, args, blockNrOrHash, nil, s.b.RPCGasCap())
+	if err != nil {
+		return 0, fmt.Errorf("failed to estimate gas: %v", err)
+	}
+	return uint64(res), nil
 }
 
 type feeHistoryResult struct {
