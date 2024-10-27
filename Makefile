@@ -560,6 +560,7 @@ contracts/test/prover/proofs/%.json: $(arbitrator_cases)/%.wasm $(prover_bin)
 	@touch $@
 
 .make/yarndeps: $(DEP_PREDICATE) contracts/package.json contracts/yarn.lock $(ORDER_ONLY_PREDICATE) .make
+	yarn --cwd safe-smart-account add husky
 	yarn --cwd safe-smart-account install
 	yarn --cwd contracts install
 	@touch $@
