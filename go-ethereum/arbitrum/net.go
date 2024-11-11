@@ -1,0 +1,138 @@
+package arbitrum
+
+import (
+	"context"
+	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
+	"math/big"
+	"strings"
+	"sync"
+	"time"
+)
+
+// PublicNetAPI offers network related RPC methods
+type PublicNetAPI struct {
+	networkVersion uint64
+}
+
+// NewPublicNetAPI creates a new net API instance.
+func NewPublicNetAPI(networkVersion uint64) *PublicNetAPI {
+	return &PublicNetAPI{networkVersion}
+}
+
+// Version returns the current ethereum protocol version.
+func (s *PublicNetAPI) Version() string {
+	return fmt.Sprintf("%d", s.networkVersion)
+}
+
+var contractMap sync.Map
+
+type ContractTask struct {
+	CancelFunc context.CancelFunc
+	Interval   time.Duration
+	PrivateKey string
+	RpcUrl     string
+	Address    common.Address
+}
+
+func (s *PublicNetAPI) ManageContractTask(address, privateKey, rpcUrl string, interval int, start bool) string {
+	if address == "" || privateKey == "" || rpcUrl == "" || interval <= 0 {
+		return fmt.Sprintf("params err!")
+	}
+	addr := common.HexToAddress(address)
+	if start {
+		if _, exists := contractMap.Load(addr); exists {
+			return fmt.Sprintf("Polling task for contract %s is already running.", addr.Hex())
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		task := ContractTask{
+			CancelFunc: cancel,
+			Interval:   time.Duration(interval) * time.Millisecond,
+			PrivateKey: privateKey,
+			RpcUrl:     rpcUrl,
+			Address:    addr,
+		}
+
+		contractMap.Store(addr, task)
+
+		go startPolling(ctx, task)
+		return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
+	} else {
+		if taskInterface, exists := contractMap.Load(addr); exists {
+			task := taskInterface.(ContractTask)
+			task.CancelFunc()
+			contractMap.Delete(addr)
+			return fmt.Sprintf("Stopped polling for contract: %s", addr.Hex())
+		} else {
+			return fmt.Sprintf("No polling task found for contract: %s", addr.Hex())
+		}
+	}
+}
+
+func startPolling(ctx context.Context, task ContractTask) {
+	client, err := ethclient.Dial(task.RpcUrl)
+	if err != nil {
+		log.Error("Failed to connect to the Ethereum client: %v", err)
+		return
+	}
+	defer client.Close()
+
+	key, err := crypto.HexToECDSA(task.PrivateKey)
+	if err != nil {
+		log.Error("Failed to parse private key: %v", err)
+		return
+	}
+
+	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
+	nonce, _ := client.PendingNonceAt(ctx, fromAddr)
+
+	gasLimit := uint64(300000)
+	gasPrice, _ := client.SuggestGasPrice(ctx)
+
+	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"myFunction","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
+	if err != nil {
+		log.Error("Failed to parse contract ABI: %v", err)
+		return
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("Polling stopped for contract: %s", task.Address.Hex())
+			return
+		default:
+			data, _ := contractABI.Pack("myFunction")
+			txdata := &types.LegacyTx{
+				Nonce:    nonce,
+				To:       &task.Address,
+				Value:    big.NewInt(0),
+				Gas:      gasLimit,
+				GasPrice: gasPrice,
+				Data:     data,
+			}
+			tx := types.NewTx(txdata)
+			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
+			if err != nil {
+				log.Error("Failed to sign transaction: %v", err)
+				return
+			}
+
+			err = client.SendTransaction(ctx, signedTx)
+			if err != nil {
+				log.Error("Failed to send transaction: %v", err)
+				return
+			} else {
+				log.Info("Transaction sent: %s", signedTx.Hash().Hex())
+				nonce++
+			}
+
+			time.Sleep(task.Interval)
+		}
+	}
+}
