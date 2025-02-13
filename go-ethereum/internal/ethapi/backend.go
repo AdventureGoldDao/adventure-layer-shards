@@ -19,6 +19,7 @@ package ethapi
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/internal/ethapi/heatbeat"
 	"math/big"
 	"time"
 
@@ -106,6 +107,9 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 	nonceLock := new(AddrLocker)
 	return []rpc.API{
 		{
+			Namespace: "eth",
+			Service:   heatbeat.NewHeatBeatAPI(apiBackend),
+		}, {
 			Namespace: "eth",
 			Service:   NewEthereumAPI(apiBackend),
 		}, {
