@@ -19,14 +19,10 @@ package ethapi
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"math/big"
-	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -76,12 +72,7 @@ type EthereumAPI struct {
 
 // NewEthereumAPI creates a new Ethereum protocol API.
 func NewEthereumAPI(b Backend) *EthereumAPI {
-	s := &EthereumAPI{b}
-	err := s.loadTaskState()
-	if err != nil {
-		log.Error("Failed to load task state:", err)
-	}
-	return s
+	return &EthereumAPI{b}
 }
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
@@ -103,212 +94,6 @@ func (s *EthereumAPI) MaxPriorityFeePerGas(ctx context.Context) (*hexutil.Big, e
 		return nil, err
 	}
 	return (*hexutil.Big)(tipcap), err
-}
-
-var contractMap sync.Map
-
-const stateFile = "/contract_tasks.json"
-
-type ContractTask struct {
-	CancelFunc  context.CancelFunc
-	Interval    time.Duration
-	PrivateKey  string
-	Address     common.Address
-	sendTxMutex sync.Mutex
-}
-
-type TaskState struct {
-	PrivateKey string        `json:"privateKey"`
-	Address    string        `json:"address"`
-	Interval   time.Duration `json:"interval"`
-}
-
-func saveTaskState() error {
-	var tasks []TaskState
-	contractMap.Range(func(key, value interface{}) bool {
-		task := value.(ContractTask)
-		tasks = append(tasks, TaskState{
-			PrivateKey: task.PrivateKey,
-			Address:    task.Address.Hex(),
-			Interval:   task.Interval,
-		})
-		return true
-	})
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	file, err := os.Create(dir + stateFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(tasks)
-}
-
-func (s *EthereumAPI) loadTaskState() error {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return err
-	}
-	file, err := os.Open(dir + stateFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	defer file.Close()
-
-	var tasks []TaskState
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&tasks)
-	if err != nil {
-		return err
-	}
-	for _, taskState := range tasks {
-		if _, exists := contractMap.Load(taskState.PrivateKey); !exists {
-			ctx, cancel := context.WithCancel(context.Background())
-			address := common.HexToAddress(taskState.Address)
-			task := ContractTask{
-				CancelFunc: cancel,
-				PrivateKey: taskState.PrivateKey,
-				Address:    address,
-				Interval:   taskState.Interval,
-			}
-			contractMap.Store(taskState.PrivateKey, task)
-			go s.startPolling(ctx, task)
-		}
-	}
-	return nil
-}
-
-func (s *EthereumAPI) ManageContractTask(address, privateKey string, interval int, start bool) string {
-	if address == "" || privateKey == "" || interval <= 0 {
-		return fmt.Sprintf("params err!")
-	}
-	_, err := crypto.HexToECDSA(privateKey)
-	if err != nil {
-		return fmt.Sprintf("Failed to parse private key: %v", err)
-	}
-	addr := common.HexToAddress(address)
-	if start {
-		if taskInterface, exists := contractMap.Load(privateKey); exists {
-			task := taskInterface.(ContractTask)
-			task.CancelFunc()
-			contractMap.Delete(privateKey)
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		task := ContractTask{
-			CancelFunc: cancel,
-			Interval:   time.Duration(interval) * time.Millisecond,
-			PrivateKey: privateKey,
-			Address:    addr,
-		}
-
-		contractMap.Store(privateKey, task)
-
-		go s.startPolling(ctx, task)
-		saveTaskState()
-		return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
-	} else {
-		if taskInterface, exists := contractMap.Load(privateKey); exists {
-			task := taskInterface.(ContractTask)
-			task.CancelFunc()
-			contractMap.Delete(privateKey)
-			saveTaskState()
-			return fmt.Sprintf("Stopped polling for contract: %s", addr.Hex())
-		} else {
-			return fmt.Sprintf("No polling task found for contract: %s", addr.Hex())
-		}
-	}
-}
-
-func (s *EthereumAPI) startPolling(ctx context.Context, task ContractTask) {
-	key, err := crypto.HexToECDSA(task.PrivateKey)
-	if err != nil {
-		log.Error("Failed to parse private key: %v", err)
-		return
-	}
-
-	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
-
-	contractABI, err := abi.JSON(strings.NewReader(`[{"inputs":[],"name":"adventureHeatbeat","outputs":[],"stateMutability":"nonpayable","type":"function"}]`))
-	if err != nil {
-		log.Error("Failed to parse contract ABI:", err)
-		return
-	}
-	data, err := contractABI.Pack("adventureHeatbeat")
-	if err != nil {
-		log.Error("contractABI:", err)
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.Info("Polling stopped for contract:", task.Address.Hex())
-			return
-		default:
-			gasLimit, err := s.estimateGas(ctx, &fromAddr, &task.Address, data)
-			if err != nil {
-				log.Error("Failed to estimate gas:", err)
-				return
-			}
-			gasPrice, err := s.GasPrice(ctx)
-			if err != nil {
-				log.Error("Failed to get gas price:", err)
-				return
-			}
-			nonce, err := s.b.GetPoolNonce(ctx, fromAddr)
-			if err != nil {
-				log.Error("Failed to get nonce:", err)
-				return
-			}
-			task.sendTxMutex.Lock()
-			tx := types.NewTx(&types.LegacyTx{
-				Nonce:    nonce,
-				To:       &task.Address,
-				Value:    big.NewInt(0),
-				Gas:      gasLimit,
-				GasPrice: big.NewInt(gasPrice.ToInt().Int64() * 2),
-				Data:     data,
-			})
-			signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, key)
-			if err != nil {
-				log.Error("Failed to sign transaction:", err)
-				return
-			}
-			transaction, err := SubmitTransaction(ctx, s.b, signedTx)
-			task.sendTxMutex.Unlock()
-			if err != nil {
-				log.Error("Failed to send transaction:", err)
-				return
-			} else {
-				log.Info("Transaction sent:", transaction.Hex())
-				nonce++
-			}
-
-			time.Sleep(task.Interval)
-		}
-	}
-}
-
-func (s *EthereumAPI) estimateGas(ctx context.Context, fromAddr *common.Address, to *common.Address, data []byte) (uint64, error) {
-	args := TransactionArgs{
-		From:  fromAddr,
-		To:    to,
-		Data:  (*hexutil.Bytes)(&data),
-		Value: (*hexutil.Big)(big.NewInt(0)),
-	}
-	blockNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	res, err := DoEstimateGas(ctx, s.b, args, blockNrOrHash, nil, s.b.RPCGasCap())
-	if err != nil {
-		return 0, fmt.Errorf("failed to estimate gas: %v", err)
-	}
-	return uint64(res), nil
 }
 
 type feeHistoryResult struct {
