@@ -1,4 +1,4 @@
-package heatbeat
+package ethapi
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
@@ -16,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func NewHeatBeatAPI(b ethapi.Backend) *HeatBeatAPI {
+func NewHeatBeatAPI(b Backend) *HeatBeatAPI {
 	s := &HeatBeatAPI{b}
 	stateManager = NewStateManager()
 	stateManager.ContractMap.Range(func(key, value interface{}) bool {
@@ -134,7 +133,7 @@ func (tm *HeatBeatAPI) sendTransaction(ctx context.Context, task *ContractTask, 
 		return fmt.Errorf("tx signing failed: %w", err)
 	}
 
-	if _, err = ethapi.SubmitTransaction(ctx, tm.b, signedTx); err != nil {
+	if _, err = SubmitTransaction(ctx, tm.b, signedTx); err != nil {
 		return fmt.Errorf("tx submission failed: %w", err)
 	}
 
@@ -155,14 +154,14 @@ func (s *HeatBeatAPI) gasPrice(ctx context.Context) (*hexutil.Big, error) {
 }
 
 func (s *HeatBeatAPI) estimateGas(ctx context.Context, fromAddr *common.Address, to *common.Address, data []byte) (uint64, error) {
-	args := ethapi.TransactionArgs{
+	args := TransactionArgs{
 		From:  fromAddr,
 		To:    to,
 		Data:  (*hexutil.Bytes)(&data),
 		Value: (*hexutil.Big)(big.NewInt(0)),
 	}
 	blockNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.PendingBlockNumber)
-	res, err := ethapi.DoEstimateGas(ctx, s.b, args, blockNrOrHash, nil, s.b.RPCGasCap())
+	res, err := DoEstimateGas(ctx, s.b, args, blockNrOrHash, nil, s.b.RPCGasCap())
 	if err != nil {
 		return 0, fmt.Errorf("failed to estimate gas: %v", err)
 	}

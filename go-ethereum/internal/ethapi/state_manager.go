@@ -1,4 +1,4 @@
-package heatbeat
+package ethapi
 
 import (
 	"encoding/json"

@@ -19,7 +19,6 @@ package ethapi
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/internal/ethapi/heatbeat"
 	"math/big"
 	"time"
 
@@ -108,7 +107,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "eth",
-			Service:   heatbeat.NewHeatBeatAPI(apiBackend),
+			Service:   NewHeatBeatAPI(apiBackend),
 		}, {
 			Namespace: "eth",
 			Service:   NewEthereumAPI(apiBackend),

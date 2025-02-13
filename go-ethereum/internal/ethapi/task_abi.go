@@ -1,4 +1,4 @@
-package heatbeat
+package ethapi
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
