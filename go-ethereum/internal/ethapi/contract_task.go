@@ -20,6 +20,11 @@ type ContractTask struct {
 	Address     common.Address
 }
 
+type StateData struct {
+	Interval time.Duration `json:"interval"`
+	Address  string        `json:"address"`
+}
+
 type StateManager struct {
 	StateFile   string
 	PrivateKey  *ecdsa.PrivateKey

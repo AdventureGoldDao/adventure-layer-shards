@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -27,9 +28,9 @@ func NewStateManager() *StateManager {
 	return s
 }
 
-func (sm *StateManager) Save(state *ContractTask) error {
+func (sm *StateManager) Save(state *ContractTask) {
 	sm.ContractMap.Store(state.Address, state)
-	return nil
+	sm.saveFile()
 }
 
 func (sm *StateManager) LoadOne(address common.Address) *ContractTask {
@@ -48,13 +49,16 @@ func (sm *StateManager) LoadAll() error {
 	}
 	defer file.Close()
 
-	var tasks []*ContractTask
+	var states []StateData
 	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&tasks)
+	err = decoder.Decode(&states)
 	if err != nil {
 		return err
 	}
-	for _, taskState := range tasks {
+	for _, state := range states {
+		taskState := new(ContractTask)
+		taskState.Address = common.HexToAddress(state.Address)
+		taskState.Interval = state.Interval
 		sm.ContractMap.Store(taskState.Address, taskState)
 	}
 	return nil
@@ -62,4 +66,34 @@ func (sm *StateManager) LoadAll() error {
 
 func (sm *StateManager) Delete(address common.Address) {
 	sm.ContractMap.Delete(address)
+	sm.saveFile()
+}
+
+func (sm *StateManager) saveFile() {
+	file, err := os.Create(sm.StateFile)
+	if err != nil {
+		log.Error("Error creating file: %v\n", err)
+		return
+	}
+	defer file.Close()
+	var states []StateData
+	sm.ContractMap.Range(func(key, value interface{}) bool {
+		task := value.(*ContractTask)
+		states = append(states, StateData{
+			Address:  task.Address.String(),
+			Interval: task.Interval,
+		})
+		return true
+	})
+	jsonData, err := json.Marshal(states)
+	if err != nil {
+		log.Error("Error marshaling JSON: %v\n", err)
+		return
+	}
+	_, err = io.WriteString(file, string(jsonData))
+	if err != nil {
+		log.Error("Error writing to file: %v\n", err)
+		return
+	}
+	log.Info("heatbeat data saveFile success")
 }

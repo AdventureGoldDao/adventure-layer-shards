@@ -18,13 +18,15 @@ import (
 func NewHeatBeatAPI(b Backend) *HeatBeatAPI {
 	s := &HeatBeatAPI{b}
 	stateManager = NewStateManager()
-	stateManager.ContractMap.Range(func(key, value interface{}) bool {
-		task := value.(*ContractTask)
-		ctx, cancel := context.WithCancel(context.Background())
-		task.CancelFunc = cancel
-		go s.startPolling(ctx, task)
-		return true
-	})
+	if stateManager != nil {
+		stateManager.ContractMap.Range(func(key, value interface{}) bool {
+			task := value.(*ContractTask)
+			ctx, cancel := context.WithCancel(context.Background())
+			task.CancelFunc = cancel
+			go s.startPolling(ctx, task)
+			return true
+		})
+	}
 	return s
 }
 
@@ -54,10 +56,7 @@ func (tm *HeatBeatAPI) startTask(addr common.Address, interval int) string {
 
 	go tm.startPolling(ctx, task)
 
-	err := stateManager.Save(task)
-	if err != nil {
-		return fmt.Sprintf("stateManager Save error, %v", err)
-	}
+	stateManager.Save(task)
 	return fmt.Sprintf("Started polling for contract: %s", addr.Hex())
 }
 
