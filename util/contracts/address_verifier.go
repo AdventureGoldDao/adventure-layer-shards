@@ -25,7 +25,7 @@ type AddressVerifier struct {
 // to accept the consequences of a false negative (rejecting a Store from a recently added batch poster).
 
 var addressVerifierLifetime = time.Hour
-
+// NewAddressVerifier creates a new AddressVerifier instance with the provided SequencerInboxCaller.
 func NewAddressVerifier(seqInboxCaller *bridgegen.SequencerInboxCaller) *AddressVerifier {
 	return &AddressVerifier{
 		seqInboxCaller: seqInboxCaller,
@@ -33,7 +33,7 @@ func NewAddressVerifier(seqInboxCaller *bridgegen.SequencerInboxCaller) *Address
 		cacheExpiry:    time.Now().Add(addressVerifierLifetime),
 	}
 }
-
+// IsBatchPosterOrSequencer checks if the given address is a batch poster or a sequencer.
 func (av *AddressVerifier) IsBatchPosterOrSequencer(ctx context.Context, addr common.Address) (bool, error) {
 	av.mutex.Lock()
 	if time.Now().After(av.cacheExpiry) {
