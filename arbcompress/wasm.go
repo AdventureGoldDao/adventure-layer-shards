@@ -26,6 +26,7 @@ func brotliCompress(inBuf unsafe.Pointer, inLen uint32, outBuf unsafe.Pointer, o
 //go:wasmimport arbcompress brotli_decompress
 func brotliDecompress(inBuf unsafe.Pointer, inLen uint32, outBuf unsafe.Pointer, outLen unsafe.Pointer, dictionary Dictionary) brotliStatus
 
+// Compress compresses the input data using the specified compression level and dictionary.
 func Compress(input []byte, level uint32, dictionary Dictionary) ([]byte, error) {
 	maxOutSize := compressedBufferSizeFor(len(input))
 	outBuf := make([]byte, maxOutSize)
@@ -43,10 +44,12 @@ func Compress(input []byte, level uint32, dictionary Dictionary) ([]byte, error)
 	return outBuf[:outLen], nil
 }
 
+// Decompress decompresses the input data using an empty dictionary and a maximum output size.
 func Decompress(input []byte, maxSize int) ([]byte, error) {
 	return DecompressWithDictionary(input, maxSize, EmptyDictionary)
 }
 
+// DecompressWithDictionary decompresses the input data using the provided dictionary and a maximum output size.
 func DecompressWithDictionary(input []byte, maxSize int, dictionary Dictionary) ([]byte, error) {
 	outBuf := make([]byte, maxSize)
 	outLen := uint32(len(outBuf))
