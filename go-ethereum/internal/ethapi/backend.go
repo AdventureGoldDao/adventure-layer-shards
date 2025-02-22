@@ -107,7 +107,7 @@ func GetAPIs(apiBackend Backend) []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "eth",
-			Service:   NewHeatBeatAPI(apiBackend),
+			Service:   NewHeartBeatAPI(apiBackend),
 		}, {
 			Namespace: "eth",
 			Service:   NewEthereumAPI(apiBackend),

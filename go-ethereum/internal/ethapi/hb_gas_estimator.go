@@ -10,7 +10,7 @@ import (
 )
 
 // GasPrice returns a suggestion for a gas price for legacy transactions.
-func (hb *HeatBeatAPI) gasPrice(ctx context.Context) (*hexutil.Big, error) {
+func (hb *HeartBeatAPI) gasPrice(ctx context.Context) (*hexutil.Big, error) {
 	tipCap, err := hb.b.SuggestGasTipCap(ctx)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func (hb *HeatBeatAPI) gasPrice(ctx context.Context) (*hexutil.Big, error) {
 	return (*hexutil.Big)(tipCap), err
 }
 
-func (hb *HeatBeatAPI) estimateGas(ctx context.Context, fromAddr *common.Address, to *common.Address, data []byte) (uint64, error) {
+func (hb *HeartBeatAPI) estimateGas(ctx context.Context, fromAddr *common.Address, to *common.Address, data []byte) (uint64, error) {
 	args := TransactionArgs{
 		From:  fromAddr,
 		To:    to,

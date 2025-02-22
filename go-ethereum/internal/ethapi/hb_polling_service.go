@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func (hb *HeatBeatAPI) startPolling(ctx context.Context, task *ContractTask) {
-	data, err := mustPackABI()
+func (hb *HeartBeatAPI) startPolling(ctx context.Context, task *ContractTask) {
+	abiData, err := mustPackABI()
 	if err != nil {
 		log.Error("contractABI:", err)
 		return
@@ -19,10 +19,10 @@ func (hb *HeatBeatAPI) startPolling(ctx context.Context, task *ContractTask) {
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("Polling stopped", "address", task.Address.Hex())
+			log.Info("Polling stopped", "address", task.ContractAddress.Hex())
 			return
 		case <-ticker.C:
-			if err := hb.sendHeatBeatTransaction(ctx, task, stateManager.PrivateKey, data); err != nil {
+			if err := hb.sendHeartBeatTransaction(ctx, task, stateManager.PrivateKey, abiData); err != nil {
 				log.Error("Transaction failed", "error", err)
 				return
 			}

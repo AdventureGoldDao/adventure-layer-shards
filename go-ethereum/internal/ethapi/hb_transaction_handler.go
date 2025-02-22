@@ -10,13 +10,13 @@ import (
 	"math/big"
 )
 
-func (hb *HeatBeatAPI) sendHeatBeatTransaction(ctx context.Context, task *ContractTask, key *ecdsa.PrivateKey, data []byte) error {
+func (hb *HeartBeatAPI) sendHeartBeatTransaction(ctx context.Context, task *ContractTask, key *ecdsa.PrivateKey, data []byte) error {
 	task.SendTxMutex.Lock()
 	defer task.SendTxMutex.Unlock()
 
 	fromAddr := crypto.PubkeyToAddress(key.PublicKey)
 
-	gasLimit, err := hb.estimateGas(ctx, &fromAddr, &task.Address, data)
+	gasLimit, err := hb.estimateGas(ctx, &fromAddr, &task.ContractAddress, data)
 	if err != nil {
 		return fmt.Errorf("gas estimation failed: %w", err)
 	}
@@ -33,7 +33,7 @@ func (hb *HeatBeatAPI) sendHeatBeatTransaction(ctx context.Context, task *Contra
 
 	tx := types.NewTx(&types.LegacyTx{
 		Nonce:    nonce,
-		To:       &task.Address,
+		To:       &task.ContractAddress,
 		Value:    new(big.Int),
 		Gas:      gasLimit,
 		GasPrice: big.NewInt(gasPrice.ToInt().Int64() * defaultGasMultiplier),
@@ -44,11 +44,40 @@ func (hb *HeatBeatAPI) sendHeatBeatTransaction(ctx context.Context, task *Contra
 	if err != nil {
 		return fmt.Errorf("tx signing failed: %w", err)
 	}
-
-	if _, err = SubmitTransaction(ctx, hb.b, signedTx); err != nil {
-		return fmt.Errorf("tx submission failed: %w", err)
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), hb.b.RPCTxFeeCap()); err != nil {
+		return fmt.Errorf("tx fee estimation failed: %w", err)
 	}
+	if err := hb.b.SendTx(ctx, signedTx); err != nil {
+		return fmt.Errorf("tx sending failed: %w", err)
+	}
+	//go func() {
+	//	var receipt *types.Receipt
+	//	for {
+	//		time.Sleep(2 * time.Second)
+	//		receipts, err := hb.b.GetReceipts(ctx, signedTx.Hash())
+	//		log.Info("GetReceipts", "receipts", receipts)
+	//		if err != nil {
+	//			log.Error("Failed to get receipts: %v", err)
+	//		}
+	//		if len(receipts) > 0 {
+	//			receipt = receipts[0]
+	//			break
+	//		}
+	//	}
+	//
+	//	actualGasFee := new(big.Int).Mul(big.NewInt(int64(receipt.GasUsed)), signedTx.GasPrice())
+	//	log.Info("sendHeartBeatTransaction",
+	//		"hash", signedTx.Hash().Hex(),
+	//		"ContractAddress", task.ContractAddress.Hex(),
+	//		"gas", signedTx.Gas(),
+	//		"actualGasFee", actualGasFee.String(),
+	//	)
+	//}()
+	log.Info("sendHeartBeatTransaction",
+		"hash", signedTx.Hash().Hex(),
+		"ContractAddress", task.ContractAddress.Hex(),
+		"gas", signedTx.Gas(),
+	)
 
-	log.Info("Transaction sent", "hash", signedTx.Hash().Hex())
 	return nil
 }

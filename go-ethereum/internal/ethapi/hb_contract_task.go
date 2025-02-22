@@ -9,31 +9,33 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type HeatBeatAPI struct {
+type HeartBeatAPI struct {
 	b Backend
 }
 
 type ContractTask struct {
-	SendTxMutex sync.Mutex
-	CancelFunc  context.CancelFunc
-	Interval    time.Duration
-	Address     common.Address
+	SendTxMutex      sync.Mutex
+	CancelFunc       context.CancelFunc
+	Interval         time.Duration
+	AccountPublicKey common.Address
+	ContractAddress  common.Address
 }
 
 type StateData struct {
-	Interval time.Duration `json:"interval"`
-	Address  string        `json:"address"`
+	Interval         time.Duration `json:"interval"`
+	AccountPublicKey string        `json:"AccountPublicKey"`
+	ContractAddress  string        `json:"contractAddress"`
 }
 
 type StateManager struct {
-	StateFile   string
+	StateDir    string
 	PrivateKey  *ecdsa.PrivateKey
 	ContractMap sync.Map
 }
 
 const (
 	defaultGasMultiplier = 2
-	defaultStateFilename = "contract_tasks.json"
+	defaultStateDirname  = "/config/heartbeat_lists"
 )
 
 var (
